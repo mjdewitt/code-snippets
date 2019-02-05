@@ -982,11 +982,34 @@ class Code_Snippets_List_Table extends WP_List_Table {
 	private function search_callback( $snippet ) {
 		static $term;
 		if ( is_null( $term ) ) {
+			$_REQUEST['s'] = html_entity_decode( $_REQUEST['s'] ); //preserve symbols in $_REQUEST
 			$term = stripslashes( $_REQUEST['s'] );
 		}
 
 		$fields = array( 'name', 'desc', 'code', 'tags_list' );
-
+  		$search_code_by_line = false;
+		//line_no search delimiter => @#:
+		//search_term is optional for line_no searches
+		if (preg_match('/(?P<search_term>\w*)\@\#\:(?P<line_no>\d+)/',$term, $matches)) {
+			$line_no = (int)$matches['line_no'];
+			$search_term = $matches['search_term'];
+		}
+  		if ( $line_no > 0 ) {  
+			//if $search_term, search just Snippet code for $search_term at $line_no
+			$code_by_line = explode("\n",$snippet->code);
+			if ( isset($code_by_line[$line_no]) && false !== stripos( $code_by_line[$line_no], $search_term ) ) {
+				//this is a bit hit or miss as PHP line number in notices may not match Snippet line number
+				//selecting snippets by number of lines helps narrow down the candidates
+				return true;
+			} else {
+				//if no $search_term, select snippets that have $line_no lines or greater
+      				if (empty($search_term) && count($code_by_line)>=$line_no) {
+        				return true;
+    				} else {
+					return false;
+    				}
+			}	
+		}
 		foreach ( $fields as $field ) {
 			if ( false !== stripos( $snippet->$field, $term ) ) {
 				return true;
